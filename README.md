@@ -1,2 +1,2 @@
-# C2Dev24
-C2 Dev Course - Spring 2024
+# C2 Command and Control Server
+C2 Dev Course - Spring 2024 IU Cybersec Club
