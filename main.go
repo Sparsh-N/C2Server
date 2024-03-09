@@ -9,5 +9,7 @@ func main() {
 		Ip:   "127.0.0.1",
 		Port: "8080",
 	}
-	listener.StartListener()
+	// Run listener as go routine and then start the CLI
+	go listener.StartListener()
+	c2.StartCLI()
 }

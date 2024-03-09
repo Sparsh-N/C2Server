@@ -1,11 +1,13 @@
 package c2
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/chzyer/readline"
 	"log"
-	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -23,10 +25,19 @@ exit                     Exit C2
 `
 
 func StartCLI() {
+	// DUmmy data
+	AgentMap.Add(&Agent{
+		Id: "IU Admin",
+		Ip: "6.6.6",
+		LastCall: time.Now(),
+		CmdQueue: make([][]string, 0),
+	})
+
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("clear"),
 		readline.PcItem("help"),
 		readline.PcItem("exit"),
+		readline.PcItem("agents"),
 	)
 
 	rl, err := readline.NewEx(&readline.Config{
@@ -41,13 +52,13 @@ func StartCLI() {
 
 	defer rl.Close() // Defer closing the readline unit we exit func
 
-	historyFile, err := os.Open(".history", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	historyFile, err := os.OpenFile(".history", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for {
-		command, err := rl.Readlne()
+		command, err := rl.Readline()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -58,7 +69,7 @@ func StartCLI() {
 
 		command = strings.TrimSpace(command) // Format our string command
 
-		switch (command) {
+		switch command {
 		case "exit": // Exit cmd
 			{
 				fmt.Println("[C2] Exit Command, Shutting down")
@@ -74,18 +85,23 @@ func StartCLI() {
 					fmt.Println(err)
 				}
 			}
+		case "agents": // Return all the agents
+			{
+				for _, agent := range AgentMap.Agents {
+					fmt.Print("ID: %s, IP: %s, Last Call: seconds ago\n", agent.Id, agent.Ip)
+				} 
+			}
 		}
 	}
 }
 
 func clearConsole() error {
-	var cmd *exec.cmd
+	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("cmd", "/c", "cls")
 	} else {
 		cmd = exec.Command("clear")
 	}
-	// Redirect stdout
 	cmd.Stdout = os.Stdout
-	return cmd.Run()
+	return cmd.Run() // Run it again here
 }
