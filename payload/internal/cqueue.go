@@ -5,16 +5,16 @@ import (
 )
 
 type SafeCommandQueue struct {
-	mtx.sync.Mutex
+	mtx   sync.Mutex
 	Queue [][]string
 }
 
-var CommandQueue = SageCommandQueue(Queue: make([][]string, 0))
+var CommandQueue = SafeCommandQueue{Queue: make([][]string, 0)}
 
-func (q *SafeCommandQueue) Add(command []string) {
+func (q *SafeCommandQueue) Add(command *[]string) {
 	q.mtx.Lock()
 	defer q.mtx.Unlock()
-	q.Queue = append(q.Queue, command)
+	q.Queue = append(q.Queue, *command)
 }
 
 func (q *SafeCommandQueue) GetNext() []string {
@@ -24,6 +24,6 @@ func (q *SafeCommandQueue) GetNext() []string {
 		return nil
 	}
 	ret := q.Queue[0]
-	q.Queue = q.Queue[1]
+	q.Queue = q.Queue[1:]
 	return ret
 }
